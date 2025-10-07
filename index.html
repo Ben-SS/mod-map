@@ -16,7 +16,9 @@
 /* ===== THEME TOKENS ===== */
 :root{
   --ink:#e9edf2;--muted:#9fb2c2;--accent:#1b4f72;
-  --panel:#0f1720;--keyline:#1a2633;--pin-fill:#2E4053;
+  --panel:#0f1720;--keyline:#1a2633;
+  --pin-fill:#2E4053;            /* base pin */
+  --pin-fill-hover:#3b556e;      /* hover tint (slightly lighter) */
 }
 
 /* ===== PAGE & TYPOGRAPHY ===== */
@@ -49,14 +51,14 @@ body{
 }
 #map{
   width:100%;
-  aspect-ratio:4/3;              /* modern browsers */
+  aspect-ratio:4/2;              /* modern browsers keep 4:3 */
   max-width:1200px;
 }
-/* --- Fallback for browsers without aspect-ratio --- */
+/* Fallback for browsers without aspect-ratio */
 @supports not (aspect-ratio: 4 / 3){
   #map{height:900px;}            /* 1200×900 (4:3) fallback */
   @media(max-width:1200px){
-    #map{height:calc(75vw);}     /* maintain ~4:3 as it shrinks */
+    #map{height:calc(50vw);}     /* ~4:3 as it shrinks */
   }
 }
 
@@ -76,9 +78,13 @@ body{
 }
 .legend-row{display:flex;align-items:center;gap:8px;}
 .legend-pin{
-  width:10px;height:14px;display:inline-block;background:var(--pin-fill);
-  -webkit-clip-path:path('M6 0l4 1.5V4c0 3-2.1 5.8-5 7.2C2.1 9.8 0 7 0 4V1.5L6 0z');
-          clip-path:path('M6 0l4 1.5V4c0 3-2.1 5.8-5 7.2C2.1 9.8 0 7 0 4V1.5L6 0z');
+  width:10px;height:10px;border-radius:50%;
+  background:var(--pin-fill);display:inline-block;position:relative;
+}
+.legend-pin::after{
+  content:"";position:absolute;inset:-4px;
+  border:2px solid var(--pin-fill);border-radius:50%;
+  opacity:.7;
 }
 
 /* ===== LEAFLET THEMING ===== */
@@ -89,18 +95,24 @@ body{
 .leaflet-popup-content-wrapper{border-radius:6px;border:1px solid #dbe5ef;}
 .leaflet-popup-content{margin:10px 12px;line-height:1.35;}
 
-/* ===== MARKER & POPUP ANIMATIONS ===== */
+/* ===== HOTSPOT MARKER (SVG via divIcon) ===== */
 .pin-wrap{
-  width:28px;height:36px;transform-origin:50% 100%;
-  transition:transform 350ms ease-in-out;will-change:transform;
+  width:26px;height:26px;           /* square hotspot */
+  transform: translateZ(0);         /* enable GPU comp */
+  will-change: filter, transform;
 }
-.pin-wrap svg{display:block;width:28px;height:36px;}
-.pin-wrap svg path{fill:var(--pin-fill);}
-.pin-wrap.spin-15{transform:rotate(15deg);}
-.popup-fade{opacity:0;animation:popupFade 300ms ease forwards;}
+.pin-wrap svg{display:block;width:26px;height:26px;}
+/* Inner dot + ring use currentColor for easy hover tint */
+.pin-wrap{ color: var(--pin-fill); transition: color 160ms ease; }
+.pin-wrap:hover{ color: var(--pin-fill-hover); }
+
+/* Popup fade-in on open */
+.popup-fade{opacity:0;animation:popupFade 220ms ease forwards;}
 @keyframes popupFade{to{opacity:1;}}
 .site-title{font-weight:600;margin:0 0 4px 0;font-size:15px;color:#12202c;}
 .site-subtle{margin:0;font-size:13px;color:#233444;}
+
+/* Accessibility: focus rings */
 .leaflet-container a:focus{outline:2px solid #88b3d7;outline-offset:2px;}
 </style>
 </head>
@@ -110,7 +122,7 @@ body{
   <header class="titlebar" role="banner">
     <div class="brand">
       <!-- <img src="emblem.svg" alt="" aria-hidden="true"> -->
-      <span>Western US Test & Range Sites</span>
+      <span>Western US Test &amp; Range Sites</span>
     </div>
     <div class="meta">Ministry of Defence — Briefing</div>
   </header>
@@ -148,57 +160,67 @@ const SITES=[
   {id:'yuma',name:'Yuma Proving Ground',coords:[32.8595,-114.4396]}
 ];
 
-/* ===== MARKER ICON ===== */
-function makeShieldIcon(id){
+/* ===== HOTSPOT ICON (SVG via divIcon) =====
+   - Uses currentColor for easy CSS hover tint
+   - Inner dot + outer ring for visibility on imagery
+*/
+function makeHotspotIcon(id){
   const html=`
-  <div class="pin-wrap" id="${id}">
-    <svg viewBox="0 0 24 32" role="img" aria-label="Location marker">
-      <path d="M12 1.5l9 3.4v5.8c0 6.1-4.08 11.8-9 14.5-4.92-2.7-9-8.4-9-14.5V4.9l9-3.4z"/>
+  <div class="pin-wrap" id="${id}" aria-hidden="true">
+    <svg viewBox="0 0 24 24" role="img" aria-label="Location hotspot">
+      <!-- outer ring -->
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/>
+      <!-- inner dot -->
+      <circle cx="12" cy="12" r="4" fill="currentColor"/>
     </svg>
   </div>`;
   return L.divIcon({
     html,className:"",
-    iconSize:[28,36],iconAnchor:[14,36],popupAnchor:[0,-30]
+    iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]
   });
 }
 
-/* ===== CREATE MARKERS ===== */
-const markers=[],latlngs=[];
+/* ===== PLACE MARKERS & POPUPS ===== */
+const markers=[],latlngs=[],closeTimers=new Map();
+
 SITES.forEach(site=>{
-  const icon=makeShieldIcon(`pin-${site.id}`);
+  const icon=makeHotspotIcon(`pin-${site.id}`);
   const marker=L.marker(site.coords,{icon}).addTo(map);
+
   const popupHTML=`<h3 class="site-title">${site.name}</h3>
                    <p class="site-subtle">${site.coords[0].toFixed(5)}°, ${site.coords[1].toFixed(5)}°</p>`;
-  marker.bindPopup(popupHTML,{className:'popup-fade',autoClose:false,closeButton:true,maxWidth:260});
-  markers.push({marker,id:`pin-${site.id}`});
+
+  marker.bindPopup(popupHTML,{className:'popup-fade',autoClose:false,closeButton:false,maxWidth:260});
+
+  // Disable click-to-open; we’ll control popups via hover only
+  marker.off('click');
+
+  // Hover behavior — open on mouseover, close on mouseout (with small delay)
+  marker.on('mouseover',()=>{
+    clearTimeout(closeTimers.get(marker));
+    marker.openPopup();
+  });
+
+  marker.on('mouseout',()=>{
+    const t=setTimeout(()=>marker.closePopup(),180);
+    closeTimers.set(marker,t);
+  });
+
+  // Keep popup open if user moves pointer into it; close when leaving popup
+  marker.on('popupopen',e=>{
+    const el=e.popup.getElement();
+    if(!el) return;
+    const clear=()=>clearTimeout(closeTimers.get(marker));
+    const schedule=()=>{ const t=setTimeout(()=>marker.closePopup(),180); closeTimers.set(marker,t); };
+    el.addEventListener('mouseenter',clear);
+    el.addEventListener('mouseleave',schedule);
+  });
+
+  markers.push(marker);
   latlngs.push(site.coords);
 });
-if(latlngs.length)map.fitBounds(L.latLngBounds(latlngs),{padding:[28,28]});else map.setView([39,-115],6);
 
-/* ===== ANIMATION SEQUENCE ===== */
-function animateMarkerSequence(){
-  const baseDelay=150;
-  markers.forEach(({marker,id},idx)=>{
-    const delay=idx*baseDelay;
-    setTimeout(()=>{
-      const el=document.getElementById(id);
-      if(!el)return;
-      const onEnd=e=>{
-        if(e.propertyName==='transform'){
-          el.removeEventListener('transitionend',onEnd);
-          marker.openPopup();
-        }
-      };
-      el.addEventListener('transitionend',onEnd);
-      const fallback=setTimeout(()=>{
-        if(!marker.isPopupOpen())marker.openPopup();
-      },550);
-      marker.on('popupopen',()=>clearTimeout(fallback));
-      requestAnimationFrame(()=>el.classList.add('spin-15'));
-    },delay);
-  });
-}
-map.whenReady(animateMarkerSequence);
+if(latlngs.length) map.fitBounds(L.latLngBounds(latlngs),{padding:[28,28]}); else map.setView([39,-115],6);
 </script>
 </body>
 </html>
