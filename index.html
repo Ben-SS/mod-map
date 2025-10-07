@@ -17,8 +17,8 @@
 :root{
   --ink:#e9edf2;--muted:#9fb2c2;--accent:#1b4f72;
   --panel:#0f1720;--keyline:#1a2633;
-  --pin-fill:#C0392B;
-  --pin-fill-hover:#E74C3C;
+  --pin-fill:#E67E22;
+  --pin-fill-hover:#F39C12;
 }
 
 /* ===== PAGE & TYPOGRAPHY ===== */
@@ -77,13 +77,16 @@ body{
 }
 .legend-row{display:flex;align-items:center;gap:8px;}
 .legend-pin{
-  width:10px;height:10px;border-radius:50%;
-  background:var(--pin-fill);display:inline-block;position:relative;
+  width:12px; height:12px; border-radius:50%;
+  background:var(--pin-fill); display:inline-block; position:relative;
+}
+.legend-pin::before{
+  content:""; position:absolute; inset:-4px;
+  border:2px solid #fff; border-radius:50%; opacity:.95;   /* white halo */
 }
 .legend-pin::after{
-  content:"";position:absolute;inset:-4px;
-  border:2px solid var(--pin-fill);border-radius:50%;
-  opacity:.7;
+  content:""; position:absolute; inset:-4px;
+  border:2px solid var(--pin-fill); border-radius:50%; opacity:.9;
 }
 
 /* ===== LEAFLET THEMING ===== */
@@ -94,16 +97,22 @@ body{
 .leaflet-popup-content-wrapper{border-radius:6px;border:1px solid #dbe5ef;}
 .leaflet-popup-content{margin:10px 12px;line-height:1.35;}
 
-/* ===== HOTSPOT MARKER (SVG via divIcon) ===== */
+/* ===== HOTSPOT MARKER (bigger, high-contrast, hover grow) ===== */
 .pin-wrap{
-  width:26px;height:26px;           /* square hotspot */
-  transform: translateZ(0);         /* enable GPU comp */
-  will-change: filter, transform;
+  width:34px; height:34px;                 /* bigger */
+  transform: translateZ(0);                 /* GPU hint */
+  will-change: color, transform, filter;
+  color: var(--pin-fill);
+  transition: color 140ms ease, transform 140ms ease, filter 140ms ease;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.45));  /* subtle pop on imagery */
+  cursor: pointer;
 }
-.pin-wrap svg{display:block;width:26px;height:26px;}
-/* Inner dot + ring use currentColor for easy hover tint */
-.pin-wrap{ color: var(--pin-fill); transition: color 160ms ease; }
-.pin-wrap:hover{ color: var(--pin-fill-hover); }
+.pin-wrap:hover{
+  color: var(--pin-fill-hover);
+  transform: scale(1.12);                   /* gentle grow */
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.55));
+}
+.pin-wrap svg{ display:block; width:34px; height:34px; }
 
 /* Popup fade-in on open */
 .popup-fade{opacity:0;animation:popupFade 220ms ease forwards;}
@@ -164,18 +173,24 @@ const SITES=[
    - Inner dot + outer ring for visibility on imagery
 */
 function makeHotspotIcon(id){
-  const html=`
+  const html = `
   <div class="pin-wrap" id="${id}" aria-hidden="true">
     <svg viewBox="0 0 24 24" role="img" aria-label="Location hotspot">
-      <!-- outer ring -->
-      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" opacity="0.9"/>
-      <!-- inner dot -->
-      <circle cx="12" cy="12" r="4" fill="currentColor"/>
+      <!-- white contrast halo -->
+      <circle cx="12" cy="12" r="10" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.95"/>
+      <!-- colored ring (uses currentColor) -->
+      <circle cx="12" cy="12" r="9"  fill="none" stroke="currentColor" stroke-width="3" opacity="0.95"/>
+      <!-- larger inner disc -->
+      <circle cx="12" cy="12" r="5.5" fill="currentColor" />
+      <!-- bigger (transparent) hit area to make hover easier -->
+      <circle cx="12" cy="12" r="12" fill="transparent" />
     </svg>
   </div>`;
   return L.divIcon({
-    html,className:"",
-    iconSize:[26,26],iconAnchor:[13,13],popupAnchor:[0,-14]
+    html, className: "",
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18]
   });
 }
 
