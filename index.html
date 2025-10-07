@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Western US Test & Range Sites — Satellite Map</title>
+
+<!-- Google Font -->
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+
+<style>
+/* ===== THEME TOKENS ===== */
+:root{
+  --ink:#e9edf2;--muted:#9fb2c2;--accent:#1b4f72;
+  --panel:#0f1720;--keyline:#1a2633;--pin-fill:#2E4053;
+}
+
+/* ===== PAGE & TYPOGRAPHY ===== */
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  color:var(--ink);
+  background:radial-gradient(1200px 600px at 50% -10%,#0f1620 0%,#0b0f14 60%,#091018 100%);
+}
+
+/* ===== SHELL & HEADER ===== */
+.shell{max-width:1200px;margin:24px auto 48px;padding:0 16px;}
+.titlebar{
+  display:flex;align-items:baseline;justify-content:space-between;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--keyline);
+  border-radius:8px 8px 0 0;padding:12px 16px;
+}
+.titlebar .brand{display:flex;gap:10px;align-items:center;font-weight:600;letter-spacing:.2px;}
+.titlebar .brand img{height:22px;filter:grayscale(100%);opacity:.9;}
+.titlebar .meta{color:var(--muted);font-size:13px;}
+
+/* ===== MAP FRAME (4:3) ===== */
+.frame{
+  border:1px solid var(--keyline);
+  border-top:none;border-radius:0 0 8px 8px;
+  background:#0a0f15;box-shadow:0 10px 30px rgba(0,0,0,.35);
+  position:relative;overflow:hidden;
+}
+#map{
+  width:100%;
+  aspect-ratio:4/3;              /* modern browsers */
+  max-width:1200px;
+}
+/* --- Fallback for browsers without aspect-ratio --- */
+@supports not (aspect-ratio: 4 / 3){
+  #map{height:900px;}            /* 1200×900 (4:3) fallback */
+  @media(max-width:1200px){
+    #map{height:calc(75vw);}     /* maintain ~4:3 as it shrinks */
+  }
+}
+
+/* Optional technical corner ticks */
+.frame::before,.frame::after{
+  content:"";position:absolute;width:18px;height:18px;border:1px solid #1d2a37;
+}
+.frame::before{left:10px;top:10px;border-right:none;border-bottom:none;}
+.frame::after{right:10px;bottom:10px;border-left:none;border-top:none;}
+
+/* ===== LEGEND ===== */
+.legend{
+  display:inline-block;margin:10px 0 0;color:var(--muted);
+  font-size:13px;background:rgba(12,18,26,.7);
+  border:1px solid var(--keyline);border-radius:6px;
+  padding:8px 10px;backdrop-filter:blur(2px);
+}
+.legend-row{display:flex;align-items:center;gap:8px;}
+.legend-pin{
+  width:10px;height:14px;display:inline-block;background:var(--pin-fill);
+  -webkit-clip-path:path('M6 0l4 1.5V4c0 3-2.1 5.8-5 7.2C2.1 9.8 0 7 0 4V1.5L6 0z');
+          clip-path:path('M6 0l4 1.5V4c0 3-2.1 5.8-5 7.2C2.1 9.8 0 7 0 4V1.5L6 0z');
+}
+
+/* ===== LEAFLET THEMING ===== */
+.leaflet-container a{color:var(--accent);}
+.leaflet-control-attribution{background:rgba(255,255,255,.8);color:#12202c;}
+.leaflet-control-zoom a{background:#14202b;color:#cfe2f3;border:1px solid #203040;}
+.leaflet-control-zoom a:hover{background:#1b2a38;}
+.leaflet-popup-content-wrapper{border-radius:6px;border:1px solid #dbe5ef;}
+.leaflet-popup-content{margin:10px 12px;line-height:1.35;}
+
+/* ===== MARKER & POPUP ANIMATIONS ===== */
+.pin-wrap{
+  width:28px;height:36px;transform-origin:50% 100%;
+  transition:transform 350ms ease-in-out;will-change:transform;
+}
+.pin-wrap svg{display:block;width:28px;height:36px;}
+.pin-wrap svg path{fill:var(--pin-fill);}
+.pin-wrap.spin-15{transform:rotate(15deg);}
+.popup-fade{opacity:0;animation:popupFade 300ms ease forwards;}
+@keyframes popupFade{to{opacity:1;}}
+.site-title{font-weight:600;margin:0 0 4px 0;font-size:15px;color:#12202c;}
+.site-subtle{margin:0;font-size:13px;color:#233444;}
+.leaflet-container a:focus{outline:2px solid #88b3d7;outline-offset:2px;}
+</style>
+</head>
+
+<body>
+<main class="shell">
+  <header class="titlebar" role="banner">
+    <div class="brand">
+      <!-- <img src="emblem.svg" alt="" aria-hidden="true"> -->
+      <span>Western US Test & Range Sites</span>
+    </div>
+    <div class="meta">Ministry of Defence — Briefing</div>
+  </header>
+
+  <section class="frame">
+    <div id="map" aria-label="Satellite map of selected defence and test sites in the western United States"></div>
+  </section>
+
+  <aside class="legend" aria-label="Map legend">
+    <div class="legend-row">
+      <span class="legend-pin"></span> Defence / Test Site
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ===== MAP: Esri World Imagery ===== */
+const map=L.map('map',{zoomControl:true});
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+    maxZoom:19
+  }).addTo(map);
+
+/* ===== DATA ===== */
+const SITES=[
+  {id:'china-lake',name:'Naval Air Weapons Station (NAWS) China Lake',coords:[35.6508,-117.6617]},
+  {id:'nellis-afb',name:'Nellis Air Force Base',coords:[36.2406,-115.0543]},
+  {id:'nas-point-mugu',name:'Naval Air Station (NAS) Point Mugu',coords:[34.1127,-119.1056]},
+  {id:'uttr',name:'Utah Test and Training Range (UTTR)',coords:[40.6571,-113.4383]},
+  {id:'ttr',name:'Tonopah Test Range (TTR)',coords:[37.78,-116.77]},
+  {id:'mhrc',name:'Mountain Home Range Complex (MHRC)',coords:[42.754883,-115.575822]},
+  {id:'wsmr',name:'White Sands Missile Range (WSMR)',coords:[33.2385,-106.3464]},
+  {id:'yuma',name:'Yuma Proving Ground',coords:[32.8595,-114.4396]}
+];
+
+/* ===== MARKER ICON ===== */
+function makeShieldIcon(id){
+  const html=`
+  <div class="pin-wrap" id="${id}">
+    <svg viewBox="0 0 24 32" role="img" aria-label="Location marker">
+      <path d="M12 1.5l9 3.4v5.8c0 6.1-4.08 11.8-9 14.5-4.92-2.7-9-8.4-9-14.5V4.9l9-3.4z"/>
+    </svg>
+  </div>`;
+  return L.divIcon({
+    html,className:"",
+    iconSize:[28,36],iconAnchor:[14,36],popupAnchor:[0,-30]
+  });
+}
+
+/* ===== CREATE MARKERS ===== */
+const markers=[],latlngs=[];
+SITES.forEach(site=>{
+  const icon=makeShieldIcon(`pin-${site.id}`);
+  const marker=L.marker(site.coords,{icon}).addTo(map);
+  const popupHTML=`<h3 class="site-title">${site.name}</h3>
+                   <p class="site-subtle">${site.coords[0].toFixed(5)}°, ${site.coords[1].toFixed(5)}°</p>`;
+  marker.bindPopup(popupHTML,{className:'popup-fade',autoClose:false,closeButton:true,maxWidth:260});
+  markers.push({marker,id:`pin-${site.id}`});
+  latlngs.push(site.coords);
+});
+if(latlngs.length)map.fitBounds(L.latLngBounds(latlngs),{padding:[28,28]});else map.setView([39,-115],6);
+
+/* ===== ANIMATION SEQUENCE ===== */
+function animateMarkerSequence(){
+  const baseDelay=150;
+  markers.forEach(({marker,id},idx)=>{
+    const delay=idx*baseDelay;
+    setTimeout(()=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      const onEnd=e=>{
+        if(e.propertyName==='transform'){
+          el.removeEventListener('transitionend',onEnd);
+          marker.openPopup();
+        }
+      };
+      el.addEventListener('transitionend',onEnd);
+      const fallback=setTimeout(()=>{
+        if(!marker.isPopupOpen())marker.openPopup();
+      },550);
+      marker.on('popupopen',()=>clearTimeout(fallback));
+      requestAnimationFrame(()=>el.classList.add('spin-15'));
+    },delay);
+  });
+}
+map.whenReady(animateMarkerSequence);
+</script>
+</body>
+</html>
