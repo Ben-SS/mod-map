@@ -194,41 +194,39 @@ function makeHotspotIcon(id){
   });
 }
 
-/* ===== PLACE MARKERS & POPUPS ===== */
-const markers=[],latlngs=[],closeTimers=new Map();
+/* ===== PLACE MARKERS & POPUPS — instant close on mouseout ===== */
+const markers = [], latlngs = [];
 
-SITES.forEach(site=>{
-  const icon=makeHotspotIcon(`pin-${site.id}`);
-  const marker=L.marker(site.coords,{icon}).addTo(map);
+SITES.forEach(site => {
+  const icon = makeHotspotIcon(`pin-${site.id}`);
+  const marker = L.marker(site.coords, { icon }).addTo(map);
 
-  const popupHTML=`<h3 class="site-title">${site.name}</h3>
-                   <p class="site-subtle">${site.coords[0].toFixed(5)}°, ${site.coords[1].toFixed(5)}°</p>`;
+  const popupHTML = `
+    <h3 class="site-title">${site.name}</h3>
+    <p class="site-subtle">${site.coords[0].toFixed(5)}°, ${site.coords[1].toFixed(5)}°</p>
+  `;
 
-  marker.bindPopup(popupHTML,{className:'popup-fade',autoClose:false,closeButton:false,maxWidth:260});
+  marker.bindPopup(popupHTML, {
+    className: 'popup-fade',
+    autoClose: false,      // (optional) keep as-is; can set true if you prefer only one open
+    closeButton: false,
+    maxWidth: 260
+  });
 
-  // Disable click-to-open; we’ll control popups via hover only
+  // No click-to-open; hover only
   marker.off('click');
 
-  // Hover behavior — open on mouseover, close on mouseout (with small delay)
-  marker.on('mouseover',()=>{
-    clearTimeout(closeTimers.get(marker));
+  // Open instantly on hover
+  marker.on('mouseover', () => {
     marker.openPopup();
   });
 
-  marker.on('mouseout',()=>{
-    marker.closePopup()    
+  // Close instantly when leaving the marker
+  marker.on('mouseout', () => {
+    marker.closePopup();
   });
 
-  // Keep popup open if user moves pointer into it; close when leaving popup
-  marker.on('popupopen',e=>{
-    const el=e.popup.getElement();
-    if(!el) return;
-    const clear=()=>clearTimeout(closeTimers.get(marker));
-    const schedule=()=>{ const t=setTimeout(()=>marker.closePopup(),180); closeTimers.set(marker,t); };
-    el.addEventListener('mouseenter',clear);
-    el.addEventListener('mouseleave',schedule);
-  });
-
+  // IMPORTANT: remove any popupenter/leave delay logic (no timers, no hover-sticky popup)
   markers.push(marker);
   latlngs.push(site.coords);
 });
