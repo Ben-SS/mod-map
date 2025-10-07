@@ -216,7 +216,7 @@ SITES.forEach(site=>{
   });
 
   marker.on('mouseout',()=>{
-    const t=setTimeout(()=>marker.closePopup(),180);
+    const t=setTimeout(()=>marker.closePopup(),0);
     closeTimers.set(marker,t);
   });
 
