@@ -216,8 +216,7 @@ SITES.forEach(site=>{
   });
 
   marker.on('mouseout',()=>{
-    const t=setTimeout(()=>marker.closePopup(),0);
-    closeTimers.set(marker,t);
+    marker.closePopup()    
   });
 
   // Keep popup open if user moves pointer into it; close when leaving popup
