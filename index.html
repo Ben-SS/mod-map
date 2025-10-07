@@ -17,7 +17,7 @@
 :root{
   --ink:#e9edf2;--muted:#9fb2c2;--accent:#1b4f72;
   --panel:#0f1720;--keyline:#1a2633;
-  --pin-fill:#C0392B;
+  --pin-fill:#2E86C1;
   --pin-fill-hover:#F39C12;
 }
 
@@ -234,7 +234,7 @@ SITES.forEach(site=>{
   latlngs.push(site.coords);
 });
 
-if(latlngs.length) map.fitBounds(L.latLngBounds(latlngs),{padding:[28,28]}); else map.setView([39,-115],5);
+if(latlngs.length) map.fitBounds(L.latLngBounds(latlngs),{padding:[100,100]}); else map.setView([39,-115],6);
 </script>
 </body>
 </html>
