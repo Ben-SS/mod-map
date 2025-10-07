@@ -17,8 +17,8 @@
 :root{
   --ink:#e9edf2;--muted:#9fb2c2;--accent:#1b4f72;
   --panel:#0f1720;--keyline:#1a2633;
-  --pin-fill:#2E4053;            /* base pin */
-  --pin-fill-hover:#3b556e;      /* hover tint (slightly lighter) */
+  --pin-fill:#E67E22;
+  --pin-fill-hover:#F39C12;
 }
 
 /* ===== PAGE & TYPOGRAPHY ===== */
@@ -51,14 +51,13 @@ body{
 }
 #map{
   width:100%;
-  aspect-ratio:4/2;              /* modern browsers keep 4:3 */
+  aspect-ratio:5/3;       /* wider ratio */
   max-width:1200px;
 }
-/* Fallback for browsers without aspect-ratio */
-@supports not (aspect-ratio: 4 / 3){
-  #map{height:900px;}            /* 1200×900 (4:3) fallback */
+@supports not (aspect-ratio: 5 / 3){
+  #map{height:720px;}     /* 1200 × 720 = 5:3 */
   @media(max-width:1200px){
-    #map{height:calc(50vw);}     /* ~4:3 as it shrinks */
+    #map{height:calc(60vw);} /* maintains ~5:3 as it shrinks */
   }
 }
 
